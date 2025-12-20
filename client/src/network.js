@@ -34,6 +34,10 @@ export class Network {
             if (this.game.onGameEnd) this.game.onGameEnd(data);
         });
 
+        this.socket.on('gamePaused', (isPaused) => {
+            if (this.game.onGamePaused) this.game.onGamePaused(isPaused);
+        });
+
         this.socket.on('playerHit', (data) => {
             if (this.game.onPlayerHit) this.game.onPlayerHit(data);
         });
@@ -49,5 +53,9 @@ export class Network {
 
     sendInput(inputState) {
         this.socket.emit('input', inputState);
+    }
+
+    togglePause() {
+        this.socket.emit('togglePause');
     }
 }

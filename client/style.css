@@ -46,17 +46,23 @@ input {
 /* Screens */
 #join-screen,
 #lobby-screen,
-#end-screen {
+#end-screen,
+#pause-menu {
   display: flex;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   height: 100%;
   gap: 20px;
-  background-color: #222;
+  background-color: rgba(0, 0, 0, 0.85);
   z-index: 100;
   position: absolute;
   width: 100%;
+}
+
+#pause-menu h2 {
+  font-size: 2.5rem;
+  color: white;
 }
 
 /* Game Arena */
@@ -197,13 +203,11 @@ input {
 .punching .arm-right {
   transform: translateX(10px) rotate(-90deg);
   background: #ff4444 !important;
-  /* Visual flash */
 }
 
 .kicking .leg-right {
   transform: translate(15px, -15px) rotate(-90deg);
   background: #ff4444 !important;
-  /* Visual flash */
 }
 
 /* UI Elements attached to player */

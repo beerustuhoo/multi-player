@@ -2,24 +2,26 @@
 <html lang="en">
 
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stickfighters</title>
-  <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
   <div id="app">
     <div id="join-screen">
       <h1>Stickfighters</h1>
-      <input type="text" id="username-input" placeholder="Enter Username" />
-      <button id="join-btn">Join Game</button>
+      <div id="join-inputs">
+        <input type="text" id="username" placeholder="Enter Username" maxlength="10">
+        <button id="join-btn">Join Game</button>
+      </div>
     </div>
 
     <div id="lobby-screen" class="hidden">
       <h2>Lobby</h2>
+      <p>Waiting for players...</p>
       <div id="player-list"></div>
-      <button id="start-btn" disabled>Start Game</button>
     </div>
 
     <div id="game-screen" class="hidden">
@@ -28,17 +30,24 @@
         <div id="scoreboard" class="scoreboard"></div>
         <div id="message-area"></div>
       </div>
+
+      <div id="pause-menu" class="hidden">
+        <h2>Game Paused</h2>
+        <button id="resume-btn">Resume</button>
+        <button id="quit-btn" style="background-color: #d9534f;">Quit Game</button>
+      </div>
+
       <div id="game-arena">
-        <!-- Players will be rendered here -->
+        <!-- Players rendered here -->
       </div>
     </div>
 
     <div id="end-screen" class="hidden">
-      <h2 id="winner-text"></h2>
-      <button id="lobby-return-btn">Back to Lobby</button>
+      <h2 id="winner-text">Game Over</h2>
+      <button id="lobby-return-btn">Return to Lobby</button>
     </div>
   </div>
-  <script type="module" src="./src/main.js"></script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 
 </html>

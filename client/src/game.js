@@ -18,8 +18,27 @@ export class Game {
         this.localId = null;
     }
 
+    // Event Handlers for UI
+    setupUI() {
+        // Pause/Resume
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape' && this.isRunning) {
+                this.network.togglePause();
+            }
+        });
+
+        document.getElementById('resume-btn').addEventListener('click', () => {
+            this.network.togglePause();
+        });
+
+        document.getElementById('quit-btn').addEventListener('click', () => {
+            window.location.reload();
+        });
+    }
+
     start() {
         this.renderer.init();
+        this.setupUI();
         this.isRunning = true;
         this.lastTime = performance.now();
         requestAnimationFrame(this.loop.bind(this));
@@ -73,6 +92,18 @@ export class Game {
         gameScreen.classList.add('hidden');
         endScreen.classList.remove('hidden');
         winnerText.innerText = `Game Over: ${data.reason}`;
+    }
+
+    onGamePaused(isPaused) {
+        const pauseMenu = document.getElementById('pause-menu');
+        const timerEl = document.getElementById('timer');
+
+        if (isPaused) {
+            pauseMenu.classList.remove('hidden');
+            if (timerEl) timerEl.innerText += " (PAUSED)";
+        } else {
+            pauseMenu.classList.add('hidden');
+        }
     }
 
     onPlayerHit({ type }) {
