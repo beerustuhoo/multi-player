@@ -1,0 +1,115 @@
+import { Renderer } from './renderer.js';
+import { InputHandler } from './input.js';
+import { Physics } from '../../shared/physics.js';
+import { CONSTANTS } from '../../shared/constants.js';
+import { Network } from './network.js';
+import { AudioManager } from './audio.js';
+
+export class Game {
+    constructor() {
+        this.arena = document.getElementById('game-arena');
+        this.renderer = new Renderer(this.arena);
+        this.input = new InputHandler();
+        this.network = new Network(this);
+        this.audio = new AudioManager();
+        this.isRunning = false;
+
+        this.players = [];
+        this.localId = null;
+    }
+
+    start() {
+        this.renderer.init();
+        this.isRunning = true;
+        this.lastTime = performance.now();
+        requestAnimationFrame(this.loop.bind(this));
+    }
+
+    join(username) {
+        this.network.joinGame(username);
+        this.isRunning = true;
+        this.start();
+    }
+
+    onStateUpdate(state) {
+        this.players = state.players;
+        if (!this.localId && this.network.socket.id) {
+            this.localId = this.network.socket.id;
+        }
+
+        const timerEl = document.getElementById('timer');
+        if (state.timer !== undefined && timerEl) {
+            const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
+            const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
+            timerEl.innerText = `${minutes}:${seconds}`;
+        }
+
+        // Update Scoreboard
+        const scoreboardEl = document.getElementById('scoreboard');
+        if (scoreboardEl && this.players) {
+            scoreboardEl.innerHTML = '';
+            const sortedPlayers = [...this.players].sort((a, b) => b.score - a.score);
+            sortedPlayers.forEach(p => {
+                const item = document.createElement('div');
+                item.className = 'score-item';
+                item.style.color = p.color;
+                item.innerText = `${p.name}: ${p.score}`;
+                scoreboardEl.appendChild(item);
+            });
+        }
+    }
+
+    onGameStart() {
+        // Optional: show "GO!" message
+        this.audio.playTone(600, 'sine', 0.5);
+    }
+
+    onGameEnd(data) {
+        this.isRunning = false;
+        const endScreen = document.getElementById('end-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const winnerText = document.getElementById('winner-text');
+
+        gameScreen.classList.add('hidden');
+        endScreen.classList.remove('hidden');
+        winnerText.innerText = `Game Over: ${data.reason}`;
+    }
+
+    onPlayerHit({ type }) {
+        if (type === 'punch') {
+            this.audio.playPunch();
+        } else {
+            this.audio.playKick();
+        }
+    }
+
+    onPlayerKO() {
+        this.audio.playKO();
+    }
+
+    loop(timestamp) {
+        if (!this.isRunning) return;
+        const dt = timestamp - this.lastTime;
+        this.lastTime = timestamp;
+
+        this.update(dt);
+        this.render();
+        requestAnimationFrame(this.loop.bind(this));
+    }
+
+    update(dt) {
+        const inputState = this.input.getState();
+        const player = this.players.find(p => p.id === this.localId);
+
+        // Client side sound trigger for jump
+        if (player && inputState.jump && player.isGrounded) {
+            this.audio.playJump();
+        }
+
+        this.network.sendInput(inputState);
+    }
+
+    render() {
+        this.renderer.renderPlayers(this.players);
+    }
+}
