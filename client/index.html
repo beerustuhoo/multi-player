@@ -20,14 +20,17 @@
 
     <div id="lobby-screen" class="hidden">
       <h2>Lobby</h2>
-      <p>Waiting for players...</p>
+      <p id="lobby-status">Waiting for host to start...</p>
       <div id="player-list"></div>
+      <button id="start-game-btn" class="hidden">Start Game</button>
     </div>
 
     <div id="game-screen" class="hidden">
       <div id="hud">
         <div id="timer">03:00</div>
         <div id="scoreboard" class="scoreboard"></div>
+        <button id="game-pause-btn"
+          style="position: absolute; top: 10px; right: 20px; pointer-events: auto; z-index: 1000;">Pause</button>
         <div id="message-area"></div>
       </div>
 

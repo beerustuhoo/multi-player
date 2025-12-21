@@ -12,8 +12,21 @@ export class Network {
             console.log('Connected to server with ID:', this.socket.id);
         });
 
+        this.socket.on('joinError', (msg) => {
+            if (this.game.onJoinError) this.game.onJoinError(msg);
+        });
+
+        this.socket.on('joinSuccess', () => {
+            if (this.game.onJoinSuccess) this.game.onJoinSuccess();
+        });
+
+
         this.socket.on('playerJoined', (player) => {
             console.log('Player joined:', player);
+        });
+
+        this.socket.on('lobbyUpdate', (lobbyState) => {
+            if (this.game.onLobbyUpdate) this.game.onLobbyUpdate(lobbyState);
         });
 
         this.socket.on('currentPlayers', (players) => {
@@ -45,6 +58,10 @@ export class Network {
         this.socket.on('playerKO', (data) => {
             if (this.game.onPlayerKO) this.game.onPlayerKO(data);
         });
+
+        this.socket.on('serverMessage', (msg) => {
+            if (this.game.onServerMessage) this.game.onServerMessage(msg);
+        });
     }
 
     joinGame(username) {
@@ -57,5 +74,9 @@ export class Network {
 
     togglePause() {
         this.socket.emit('togglePause');
+    }
+
+    requestStartGame() {
+        this.socket.emit('requestStartGame');
     }
 }

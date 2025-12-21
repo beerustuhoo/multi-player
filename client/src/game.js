@@ -31,6 +31,12 @@ export class Game {
             this.network.togglePause();
         });
 
+        document.getElementById('game-pause-btn').addEventListener('click', () => {
+            this.network.togglePause();
+            // Blur the button so Space key (Jump) doesn't re-trigger it
+            document.getElementById('game-pause-btn').blur();
+        });
+
         document.getElementById('quit-btn').addEventListener('click', () => {
             window.location.reload();
         });
@@ -46,12 +52,22 @@ export class Game {
 
     join(username) {
         this.network.joinGame(username);
+        // Do not start until confirmation
+    }
+
+    onJoinSuccess() {
         this.isRunning = true;
         this.start();
     }
 
+    onJoinError(msg) {
+        alert(msg); // Simple alert for now, or use a callback to UI
+    }
+
     onStateUpdate(state) {
         this.players = state.players;
+        this.powerups = state.powerups;
+
         if (!this.localId && this.network.socket.id) {
             this.localId = this.network.socket.id;
         }
@@ -78,9 +94,27 @@ export class Game {
         }
     }
 
+
+
     onGameStart() {
         // Optional: show "GO!" message
         this.audio.playTone(600, 'sine', 0.5);
+        // Clear system messages
+        const msgArea = document.getElementById('message-area');
+        if (msgArea) msgArea.innerText = '';
+    }
+
+    onServerMessage(msg) {
+        const msgArea = document.getElementById('message-area');
+        if (msgArea) {
+            msgArea.innerText = msg;
+            // Clear after a few seconds
+            setTimeout(() => {
+                if (msgArea.innerText === msg) {
+                    msgArea.innerText = '';
+                }
+            }, 5000);
+        }
     }
 
     onGameEnd(data) {
@@ -91,7 +125,7 @@ export class Game {
 
         gameScreen.classList.add('hidden');
         endScreen.classList.remove('hidden');
-        winnerText.innerText = `Game Over: ${data.reason}`;
+        winnerText.innerText = `${data.winner} (${data.reason})`;
     }
 
     onGamePaused(isPaused) {
@@ -142,5 +176,6 @@ export class Game {
 
     render() {
         this.renderer.renderPlayers(this.players);
+        this.renderer.renderPowerups(this.powerups);
     }
 }

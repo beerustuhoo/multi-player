@@ -44,8 +44,13 @@ io.on('connection', (socket) => {
     });
 
     socket.on('togglePause', () => {
-        gameRoom.togglePause();
+        gameRoom.togglePause(socket.id);
     });
+
+    socket.on('requestStartGame', () => {
+        gameRoom.requestStartGame(socket.id);
+    });
+
 
     socket.on('disconnect', () => {
         console.log('Player disconnected:', socket.id);

@@ -26,4 +26,14 @@ export const CONSTANTS = {
     KICK_RANGE: 90,
 
     TICK_RATE: 30, // Server tick rate
+
+    // Power-Ups
+    POWERUP_TYPES: {
+        SPEED_BOOST: 'speed_boost',
+        DAMAGE_BOOST: 'damage_boost'
+    },
+    POWERUP_DURATION: 10000, // 10 seconds
+    POWERUP_SPAWN_INTERVAL_MIN: 15000,
+    POWERUP_SPAWN_INTERVAL_MAX: 30000,
+    POWERUP_SIZE: 30,
 };

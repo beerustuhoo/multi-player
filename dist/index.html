@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Stickfighters</title>
-  <script type="module" crossorigin src="/assets/index-C2PRmeP4.js"></script>
+  <script type="module" crossorigin src="/assets/index-BXF3LccN.js"></script>
   <link rel="stylesheet" crossorigin href="/assets/index-3ox1g_cT.css">
 </head>
 
@@ -21,14 +21,17 @@
 
     <div id="lobby-screen" class="hidden">
       <h2>Lobby</h2>
-      <p>Waiting for players...</p>
+      <p id="lobby-status">Waiting for host to start...</p>
       <div id="player-list"></div>
+      <button id="start-game-btn" class="hidden">Start Game</button>
     </div>
 
     <div id="game-screen" class="hidden">
       <div id="hud">
         <div id="timer">03:00</div>
         <div id="scoreboard" class="scoreboard"></div>
+        <button id="game-pause-btn"
+          style="position: absolute; top: 10px; right: 20px; pointer-events: auto; z-index: 1000;">Pause</button>
         <div id="message-area"></div>
       </div>
 

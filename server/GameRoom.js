@@ -6,16 +6,30 @@ export class GameRoom {
         this.roomId = roomId;
         this.io = io;
         this.players = new Map(); // id -> player object
+        this.hostId = null; // Track the lead player
         this.isRunning = false;
         this.isPaused = false;
         this.lastTime = Date.now();
         this.timer = 180; // 3 minutes in seconds
+        this.powerups = new Map(); // id -> powerup object
+        this.nextPowerupId = 1;
+        this.nextPowerupSpawn = Date.now() + Math.random() * (CONSTANTS.POWERUP_SPAWN_INTERVAL_MAX - CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN) + CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN;
     }
 
     addPlayer(socket, name) {
+        // Validate name (simple check)
+        const playerName = name ? name.trim().substr(0, 10) : `Player ${socket.id.substr(0, 4)}`;
+
+        // Check for duplicates
+        const existingNames = new Set(Array.from(this.players.values()).map(p => p.name.toLowerCase()));
+        if (existingNames.has(playerName.toLowerCase())) {
+            socket.emit('joinError', 'Username already taken');
+            return;
+        }
+
         const player = {
             id: socket.id,
-            name: name || `Player ${socket.id.substr(0, 4)}`,
+            name: playerName,
             x: Math.random() * (CONSTANTS.ARENA_WIDTH - 100) + 50,
             y: 100,
             vx: 0,
@@ -30,26 +44,69 @@ export class GameRoom {
             lastUpdate: Date.now(),
             action: null,
             actionTimer: 0,
-            inputs: { left: false, right: false, jump: false, attack1: false, attack2: false }
+            inputs: { left: false, right: false, jump: false, attack1: false, attack2: false },
+            buffs: {
+                speed: 0,
+                damage: 0
+            }
         };
 
         this.players.set(socket.id, player);
         socket.join(this.roomId);
 
-        this.io.to(this.roomId).emit('playerJoined', player);
-        socket.emit('currentPlayers', Array.from(this.players.values()));
-
-        if (this.players.size >= 2 && !this.isRunning) {
-            this.startGame();
+        // Assign host if none exists
+        if (!this.hostId) {
+            this.hostId = socket.id;
         }
+
+        // Notify success to the joiner
+        socket.emit('joinSuccess');
+
+        this.io.to(this.roomId).emit('playerJoined', player);
+
+        // Broadcast new lobby state
+        this.broadcastLobbyState();
     }
 
     removePlayer(socketId) {
+        const player = this.players.get(socketId);
+        if (player) {
+            this.io.to(this.roomId).emit('serverMessage', `${player.name} left the game.`);
+        }
+
         this.players.delete(socketId);
+
+        // Reassign host if the host left
+        if (this.hostId === socketId) {
+            this.hostId = this.players.keys().next().value || null;
+        }
+
         this.io.to(this.roomId).emit('playerLeft', socketId);
+        this.broadcastLobbyState();
 
         if (this.players.size < 2 && this.isRunning) {
             this.endGame('Not enough players');
+        }
+    }
+
+    broadcastLobbyState() {
+        // Emit lobby update with player list and host ID
+        this.io.to(this.roomId).emit('lobbyUpdate', {
+            players: Array.from(this.players.values()),
+            hostId: this.hostId,
+            canStart: this.players.size >= 2 && this.players.size <= 4
+        });
+    }
+
+    requestStartGame(socketId) {
+        if (this.isRunning) return;
+
+        // Only host can start
+        if (socketId !== this.hostId) return;
+
+        // Player count check
+        if (this.players.size >= 2 && this.players.size <= 4) {
+            this.startGame();
         }
     }
 
@@ -60,10 +117,17 @@ export class GameRoom {
         }
     }
 
-    togglePause() {
+    togglePause(socketId) {
         if (!this.isRunning) return;
+
+        const player = this.players.get(socketId);
+        if (!player) return;
+
         this.isPaused = !this.isPaused;
+        const msg = this.isPaused ? `${player.name} paused the game` : `${player.name} resumed the game`;
+
         this.io.to(this.roomId).emit('gamePaused', this.isPaused);
+        this.io.to(this.roomId).emit('serverMessage', msg);
     }
 
     startGame() {
@@ -71,6 +135,16 @@ export class GameRoom {
         this.isPaused = false;
         this.lastTime = Date.now();
         this.lastTimerUpdate = Date.now();
+        this.timer = 180; // Reset timer
+        this.powerups.clear();
+        this.nextPowerupSpawn = Date.now() + 5000; // First spawn in 5s
+
+        // Reset all players
+        for (const player of this.players.values()) {
+            this.respawnPlayer(player);
+            player.score = 0; // Optional: Reset score or keep it? Usually reset for new match
+        }
+
         this.io.to(this.roomId).emit('gameStart');
 
         this.intervalId = setInterval(() => {
@@ -81,7 +155,30 @@ export class GameRoom {
     endGame(reason) {
         this.isRunning = false;
         clearInterval(this.intervalId);
-        this.io.to(this.roomId).emit('gameEnd', { reason });
+
+        // Determine winner
+        let winnerName = null;
+        let maxScore = -1;
+        let isDraw = false;
+
+        const players = Array.from(this.players.values());
+        if (players.length > 0) {
+            // Sort by score descending
+            players.sort((a, b) => b.score - a.score);
+
+            const topPlayer = players[0];
+            maxScore = topPlayer.score;
+            winnerName = topPlayer.name;
+
+            // Check for draw
+            if (players.length > 1 && players[1].score === maxScore) {
+                isDraw = true;
+            }
+        }
+
+        const winnerMessage = isDraw ? "It's a Draw!" : (winnerName ? `${winnerName} Wins!` : "No Winner");
+
+        this.io.to(this.roomId).emit('gameEnd', { reason, winner: winnerMessage });
     }
 
     update() {
@@ -108,20 +205,38 @@ export class GameRoom {
             this.lastTimerUpdate = now;
         }
 
+        // Power-Up Spawning
+        if (this.isRunning && now >= this.nextPowerupSpawn && this.powerups.size === 0) {
+            this.spawnPowerup();
+            this.nextPowerupSpawn = now + Math.random() * (CONSTANTS.POWERUP_SPAWN_INTERVAL_MAX - CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN) + CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN;
+        }
+
+        // Power-Up Despawn
+        for (const [id, pu] of this.powerups) {
+            if (now > pu.despawnTime) {
+                this.powerups.delete(id);
+            }
+        }
+
         for (const player of this.players.values()) {
             if (player.hp <= 0) continue;
+
+            // Buff Expiration
+            if (player.buffs.speed > 0 && now > player.buffs.speed) player.buffs.speed = 0;
+            if (player.buffs.damage > 0 && now > player.buffs.damage) player.buffs.damage = 0;
 
             // Cooldowns
             if (player.punchCooldown > 0) player.punchCooldown -= (1000 / CONSTANTS.TICK_RATE);
             if (player.kickCooldown > 0) player.kickCooldown -= (1000 / CONSTANTS.TICK_RATE);
 
-            // Apply Inputs
+            // Apply Inputs (Buffed Speed)
+            const speedMult = player.buffs.speed > 0 ? 1.5 : 1.0;
             if (player.inputs.left) {
-                player.vx -= CONSTANTS.MOVE_ACCEL;
+                player.vx -= CONSTANTS.MOVE_ACCEL * speedMult;
                 player.facing = 'left';
             }
             if (player.inputs.right) {
-                player.vx += CONSTANTS.MOVE_ACCEL;
+                player.vx += CONSTANTS.MOVE_ACCEL * speedMult;
                 player.facing = 'right';
             }
             if (player.inputs.jump && player.isGrounded) {
@@ -136,12 +251,25 @@ export class GameRoom {
                 this.performAttack(player, 'kick');
             }
 
+            // Power-Up Collection
+            for (const [id, pu] of this.powerups) {
+                const playerRect = { x: player.x, y: player.y, width: CONSTANTS.PLAYER_WIDTH, height: CONSTANTS.PLAYER_HEIGHT };
+                const puRect = { x: pu.x, y: pu.y, width: CONSTANTS.POWERUP_SIZE, height: CONSTANTS.POWERUP_SIZE };
+
+                if (Physics.checkCollision(playerRect, puRect)) {
+                    this.applyPowerup(player, pu);
+                    this.powerups.delete(id);
+                    this.io.to(this.roomId).emit('serverMessage', `${player.name} collected ${pu.type === CONSTANTS.POWERUP_TYPES.SPEED_BOOST ? 'Speed Boost' : 'Damage Boost'}!`);
+                }
+            }
+
             // Physics
             Physics.applyGravity(player);
             Physics.applyFriction(player);
 
-            if (Math.abs(player.vx) > CONSTANTS.MAX_SPEED) {
-                player.vx = Math.sign(player.vx) * CONSTANTS.MAX_SPEED;
+            const maxSpeed = CONSTANTS.MAX_SPEED * speedMult;
+            if (Math.abs(player.vx) > maxSpeed) {
+                player.vx = Math.sign(player.vx) * maxSpeed;
             }
 
             Physics.moveEntity(player);
@@ -159,15 +287,44 @@ export class GameRoom {
 
         this.io.to(this.roomId).emit('stateUpdate', {
             players: Array.from(this.players.values()),
+            powerups: Array.from(this.powerups.values()),
             time: now,
             timer: this.timer
         });
     }
 
+    spawnPowerup() {
+        const type = Math.random() > 0.5 ? CONSTANTS.POWERUP_TYPES.SPEED_BOOST : CONSTANTS.POWERUP_TYPES.DAMAGE_BOOST;
+        const powerup = {
+            id: this.nextPowerupId++,
+            type: type,
+            x: Math.random() * (CONSTANTS.ARENA_WIDTH - 100) + 50,
+            y: CONSTANTS.ARENA_HEIGHT - 100 - CONSTANTS.POWERUP_SIZE, // On ground roughly
+            despawnTime: Date.now() + 15000 // Lasts 15s on map
+        };
+        this.powerups.set(powerup.id, powerup);
+        // this.io.to(this.roomId).emit('powerupSpawned', powerup); 
+    }
+
+    applyPowerup(player, pu) {
+        const until = Date.now() + CONSTANTS.POWERUP_DURATION;
+        if (pu.type === CONSTANTS.POWERUP_TYPES.SPEED_BOOST) {
+            player.buffs.speed = until;
+        } else if (pu.type === CONSTANTS.POWERUP_TYPES.DAMAGE_BOOST) {
+            player.buffs.damage = until;
+        }
+    }
+
     performAttack(attacker, type) {
         const isPunch = type === 'punch';
         const range = isPunch ? CONSTANTS.PUNCH_RANGE : CONSTANTS.KICK_RANGE;
-        const damage = isPunch ? CONSTANTS.PUNCH_DAMAGE : CONSTANTS.KICK_DAMAGE;
+        let damage = isPunch ? CONSTANTS.PUNCH_DAMAGE : CONSTANTS.KICK_DAMAGE;
+
+        // Apply Damage Buff
+        if (attacker.buffs.damage > 0) {
+            damage = Math.floor(damage * 1.5);
+        }
+
         const cooldown = isPunch ? CONSTANTS.PUNCH_COOLDOWN : CONSTANTS.KICK_COOLDOWN;
 
         attacker[isPunch ? 'punchCooldown' : 'kickCooldown'] = cooldown;
@@ -218,5 +375,8 @@ export class GameRoom {
         player.vy = 0;
         player.action = null;
         player.actionTimer = 0;
+        // Reset buffs on death? Let's say yes.
+        player.buffs.speed = 0;
+        player.buffs.damage = 0;
     }
 }
