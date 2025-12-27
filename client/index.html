@@ -29,9 +29,9 @@
       <div id="hud">
         <div id="timer">03:00</div>
         <div id="scoreboard" class="scoreboard"></div>
-        <button id="game-pause-btn"
-          style="position: absolute; top: 10px; right: 20px; pointer-events: auto; z-index: 1000;">Pause</button>
+        <button id="game-pause-btn">Pause</button>
         <div id="message-area"></div>
+        <button id="fullscreen-btn" title="Toggle Fullscreen">⛶</button>
       </div>
 
       <div id="pause-menu" class="hidden">
@@ -47,6 +47,7 @@
 
     <div id="end-screen" class="hidden">
       <h2 id="winner-text">Game Over</h2>
+      <div id="end-scores" class="scoreboard"></div>
       <button id="lobby-return-btn">Return to Lobby</button>
     </div>
   </div>

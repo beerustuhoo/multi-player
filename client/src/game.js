@@ -40,6 +40,19 @@ export class Game {
         document.getElementById('quit-btn').addEventListener('click', () => {
             window.location.reload();
         });
+
+        const fsBtn = document.getElementById('fullscreen-btn');
+        if (fsBtn) {
+            fsBtn.addEventListener('click', () => {
+                if (!document.fullscreenElement) {
+                    document.documentElement.requestFullscreen().catch(err => {
+                        console.error(`Error attempting to enable full-screen mode: ${err.message} (${err.name})`);
+                    });
+                } else {
+                    document.exitFullscreen();
+                }
+            });
+        }
     }
 
     start() {
@@ -118,6 +131,7 @@ export class Game {
     }
 
     onGameEnd(data) {
+        console.log('Game End Data Received:', data);
         this.isRunning = false;
         const endScreen = document.getElementById('end-screen');
         const gameScreen = document.getElementById('game-screen');
@@ -126,6 +140,38 @@ export class Game {
         gameScreen.classList.add('hidden');
         endScreen.classList.remove('hidden');
         winnerText.innerText = `${data.winner} (${data.reason})`;
+
+        const endScores = document.getElementById('end-scores');
+        if (endScores && data.scores) {
+            endScores.innerHTML = `
+                <div class="score-header">
+                    <span>Rank</span>
+                    <span>Player</span>
+                    <span>Score</span>
+                </div>
+            `;
+
+            data.scores.forEach((p, index) => {
+                const item = document.createElement('div');
+                item.className = `score-item rank-${index + 1}`;
+
+                const rank = document.createElement('span');
+                rank.className = 'rank';
+                rank.innerText = `#${index + 1}`;
+
+                const name = document.createElement('span');
+                name.className = 'player-name';
+                name.innerText = p.name;
+                name.style.color = p.color;
+
+                const score = document.createElement('span');
+                score.className = 'player-score';
+                score.innerText = p.score;
+
+                item.append(rank, name, score);
+                endScores.appendChild(item);
+            });
+        }
     }
 
     onGamePaused(isPaused) {

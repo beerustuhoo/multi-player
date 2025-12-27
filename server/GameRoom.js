@@ -14,6 +14,21 @@ export class GameRoom {
         this.powerups = new Map(); // id -> powerup object
         this.nextPowerupId = 1;
         this.nextPowerupSpawn = Date.now() + Math.random() * (CONSTANTS.POWERUP_SPAWN_INTERVAL_MAX - CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN) + CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN;
+
+        // Define vibrant colors
+        this.availableColors = [
+            '#FF0000', // Red
+            '#00FF00', // Green
+            '#0000FF', // Blue
+            '#FFFF00', // Yellow
+            '#00FFFF', // Cyan
+            '#FF00FF', // Magenta
+            '#FFA500', // Orange
+            '#800080', // Purple
+            '#FFC0CB', // Pink
+            '#FFFFFF'  // White
+        ];
+        this.usedColors = new Set();
     }
 
     addPlayer(socket, name) {
@@ -27,6 +42,20 @@ export class GameRoom {
             return;
         }
 
+        // Assign Unique Color
+        let playerColor = '#FFFFFF';
+        for (const color of this.availableColors) {
+            if (!this.usedColors.has(color)) {
+                playerColor = color;
+                this.usedColors.add(color);
+                break;
+            }
+        }
+        // Fallback if all colors taken (random hsl)
+        if (playerColor === '#FFFFFF' && this.usedColors.has('#FFFFFF')) {
+            playerColor = `hsl(${Math.random() * 360}, 70%, 50%)`;
+        }
+
         const player = {
             id: socket.id,
             name: playerName,
@@ -34,7 +63,7 @@ export class GameRoom {
             y: 100,
             vx: 0,
             vy: 0,
-            color: `hsl(${Math.random() * 360}, 70%, 50%)`,
+            color: playerColor,
             facing: 'right',
             hp: CONSTANTS.PLAYER_HP,
             score: 0,
@@ -72,6 +101,10 @@ export class GameRoom {
         const player = this.players.get(socketId);
         if (player) {
             this.io.to(this.roomId).emit('serverMessage', `${player.name} left the game.`);
+            // Release color
+            if (this.usedColors.has(player.color)) {
+                this.usedColors.delete(player.color);
+            }
         }
 
         this.players.delete(socketId);
@@ -178,7 +211,15 @@ export class GameRoom {
 
         const winnerMessage = isDraw ? "It's a Draw!" : (winnerName ? `${winnerName} Wins!` : "No Winner");
 
-        this.io.to(this.roomId).emit('gameEnd', { reason, winner: winnerMessage });
+        const scores = players.map(p => ({
+            name: p.name,
+            score: p.score,
+            color: p.color
+        }));
+
+        console.log('Ending game. Leaderboard:', scores);
+
+        this.io.to(this.roomId).emit('gameEnd', { reason, winner: winnerMessage, scores });
     }
 
     update() {
