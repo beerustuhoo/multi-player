@@ -190,6 +190,35 @@ input {
   text-shadow: 1px 1px 2px black;
 }
 
+#fps-counter {
+  position: absolute;
+  bottom: 20px;
+  left: 20px;
+  font-size: 1rem;
+  font-weight: bold;
+  color: #0f0;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.8);
+  background: rgba(0, 0, 0, 0.6);
+  padding: 8px 12px;
+  border-radius: 8px;
+  backdrop-filter: blur(5px);
+  -webkit-backdrop-filter: blur(5px);
+  border: 1px solid rgba(0, 255, 0, 0.3);
+  font-family: 'Courier New', Courier, monospace;
+  pointer-events: auto;
+  z-index: 1000;
+}
+
+#fps-counter.low-fps {
+  color: #ff0;
+  border-color: rgba(255, 255, 0, 0.5);
+}
+
+#fps-counter.critical-fps {
+  color: #f00;
+  border-color: rgba(255, 0, 0, 0.5);
+}
+
 #end-scores {
   margin-top: 20px;
   background: rgba(255, 255, 255, 0.1);
