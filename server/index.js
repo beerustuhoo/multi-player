@@ -3,6 +3,7 @@ import { createServer } from 'http';
 import { Server } from 'socket.io';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import os from 'os';
 import { GameRoom } from './GameRoom.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -17,6 +18,7 @@ const io = new Server(httpServer, {
 });
 
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0'; // Bind to all interfaces for public access
 
 // Serve static files in production
 if (process.env.NODE_ENV === 'production') {
@@ -58,6 +60,28 @@ io.on('connection', (socket) => {
     });
 });
 
-httpServer.listen(PORT, () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+httpServer.listen(PORT, HOST, () => {
+    // Get network interfaces to display accessible URLs
+    const networkInterfaces = os.networkInterfaces();
+    const addresses = [];
+    
+    // Collect all IPv4 addresses
+    Object.keys(networkInterfaces).forEach((interfaceName) => {
+        networkInterfaces[interfaceName].forEach((iface) => {
+            if (iface.family === 'IPv4' && !iface.internal) {
+                addresses.push(`http://${iface.address}:${PORT}`);
+            }
+        });
+    });
+    
+    console.log(`\n🚀 Server running!`);
+    console.log(`   Local:    http://localhost:${PORT}`);
+    if (addresses.length > 0) {
+        console.log(`   Network:  ${addresses.join(', ')}`);
+    } else {
+        console.log(`   Network:  Accessible from any network interface`);
+    }
+    console.log(`\n   Share one of these URLs with players to join the game!`);
+    console.log(`   For public access, use a tunneling service like ngrok:\n`);
+    console.log(`   Example: ngrok http ${PORT}\n`);
 });

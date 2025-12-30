@@ -58,6 +58,46 @@ A real-time multiplayer 2D fighting game built with modern Web Technologies. Fig
 2. Open your browser to `http://localhost:3000`.
 3. Open a second tab to join as another player and fight!
 
+### Public Access (Multiplayer from Anywhere)
+
+The server is configured to accept connections from any network interface. To allow players to join from anywhere on the internet:
+
+**Option 1: Using ngrok (Recommended)**
+```bash
+# Install ngrok from https://ngrok.com/download
+# Then run:
+ngrok http 3000
+```
+This will give you a public URL like `https://abc123.ngrok.io` that you can share with players.
+
+**Option 2: Using localtunnel**
+```bash
+npm install -g localtunnel
+lt --port 3000
+```
+
+**Option 3: Using the helper script**
+```bash
+./scripts/setup-public-access.sh
+```
+
+**Option 4: Direct IP Access (Local Network Only)**
+The server will display network IP addresses when it starts. Players on the same network can use:
+```
+http://[YOUR_IP_ADDRESS]:3000
+```
+
+**Connecting to a Remote Server:**
+Players can connect to a remote server by adding a `server` parameter to the URL:
+```
+http://localhost:3000?server=https://abc123.ngrok.io
+```
+
+Or set the `VITE_SERVER_URL` environment variable when building:
+```bash
+VITE_SERVER_URL=https://abc123.ngrok.io npm run build
+```
+
 ## Architecture
 
 - **Server**: Node.js + Express. Handles game state, physics, and broadcasts updates via Socket.IO.

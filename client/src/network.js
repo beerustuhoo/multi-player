@@ -3,7 +3,18 @@ import { io } from "socket.io-client";
 export class Network {
     constructor(game) {
         this.game = game;
-        this.socket = io();
+        
+        // Get server URL from URL parameter, environment variable, or default to current host
+        const urlParams = new URLSearchParams(window.location.search);
+        const serverUrl = urlParams.get('server') || 
+                        import.meta.env.VITE_SERVER_URL || 
+                        window.location.origin;
+        
+        // If server URL is provided, use it; otherwise connect to current host
+        const socketUrl = serverUrl !== window.location.origin ? serverUrl : '';
+        
+        console.log('Connecting to server:', socketUrl || 'current host');
+        this.socket = io(socketUrl);
         this.bindEvents();
     }
 
