@@ -2,7 +2,7 @@
 
 A real-time multiplayer 2D fighting game built with modern Web Technologies. Fight your friends in a cyberpunk arena with stick figures!
 
-![Stickfighters Banner](https://via.placeholder.com/800x400?text=Stickfighters+Game)
+![Stickfighters Banner](client/public/banner.png)
 
 ## Features
 
