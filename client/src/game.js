@@ -16,11 +16,6 @@ export class Game {
 
         this.players = [];
         this.localId = null;
-        
-        // Network input throttling - send at 30Hz instead of 60Hz to reduce overhead
-        this.lastInputSendTime = 0;
-        this.inputSendInterval = 1000 / 30; // 30Hz = ~33ms
-        this.pendingInput = null;
 
         // FPS tracking with self-correcting fixed timestep
         this.frameCount = 0;
@@ -118,7 +113,6 @@ export class Game {
         this.frameCount = 0;
         this.updateCount = 0;
         this.accumulator = 0;
-        this.lastInputSendTime = now;
         this.lastTimerValue = -1;
 
         // Fixed timestep loop using requestAnimationFrame with accumulator pattern
@@ -398,9 +392,6 @@ export class Game {
             this.accumulator = this.fixedDeltaTime * 3;
         }
 
-        // Send throttled input (30Hz instead of 60Hz)
-        this.sendThrottledInput(timestamp);
-        
         // Render every frame (smooth visuals)
         this.render();
         this.frameCount++;
@@ -457,17 +448,8 @@ export class Game {
             this.audio.playJump();
         }
 
-        // Throttle network input sends to 30Hz instead of 60Hz
-        // Store the latest input state and send it at a lower frequency
-        this.pendingInput = inputState;
-    }
-    
-    // Send pending input at throttled rate (called from game loop)
-    sendThrottledInput(timestamp) {
-        if (this.pendingInput && (timestamp - this.lastInputSendTime) >= this.inputSendInterval) {
-            this.network.sendInput(this.pendingInput);
-            this.lastInputSendTime = timestamp;
-        }
+        // Send input every update (60Hz)
+        this.network.sendInput(inputState);
     }
 
     render() {
