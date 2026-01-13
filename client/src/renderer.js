@@ -5,6 +5,9 @@ export class Renderer {
         this.arena = arenaElement;
         this.playerElements = new Map();
         this.powerupElements = new Map();
+        // Reusable Sets to avoid allocation every frame
+        this.activePlayerIds = new Set();
+        this.activePowerupIds = new Set();
     }
 
     init() {
@@ -17,25 +20,31 @@ export class Renderer {
 
     renderPowerups(powerups) {
         if (!powerups) return;
-        const activeIds = new Set(powerups.map(p => p.id));
+        
+        // Reuse Set instead of creating new one
+        this.activePowerupIds.clear();
+        for (let i = 0; i < powerups.length; i++) {
+            this.activePowerupIds.add(powerups[i].id);
+        }
 
         // Remove despawned
         for (const [id, element] of this.powerupElements) {
-            if (!activeIds.has(id)) {
+            if (!this.activePowerupIds.has(id)) {
                 element.remove();
                 this.powerupElements.delete(id);
             }
         }
 
         // Add/Update
-        powerups.forEach(pu => {
+        for (let i = 0; i < powerups.length; i++) {
+            const pu = powerups[i];
             let el = this.powerupElements.get(pu.id);
             if (!el) {
                 el = this.createPowerupElement(pu);
                 this.powerupElements.set(pu.id, el);
                 this.arena.appendChild(el);
             }
-        });
+        }
     }
 
     createPowerupElement(pu) {
@@ -63,15 +72,21 @@ export class Renderer {
     }
 
     renderPlayers(players) {
-        const activeIds = new Set(players.map(p => p.id));
+        // Reuse Set instead of creating new one
+        this.activePlayerIds.clear();
+        for (let i = 0; i < players.length; i++) {
+            this.activePlayerIds.add(players[i].id);
+        }
+        
         for (const [id, element] of this.playerElements) {
-            if (!activeIds.has(id)) {
+            if (!this.activePlayerIds.has(id)) {
                 element.remove();
                 this.playerElements.delete(id);
             }
         }
 
-        players.forEach(player => {
+        for (let i = 0; i < players.length; i++) {
+            const player = players[i];
             let el = this.playerElements.get(player.id);
 
             if (!el) {
@@ -81,7 +96,7 @@ export class Renderer {
             }
 
             this.updatePlayerTransform(el, player);
-        });
+        }
     }
 
     createPlayerElement(player) {
@@ -168,7 +183,8 @@ export class Renderer {
             facing: null,
             action: null,
             buffs: null,
-            visible: true // Track visibility state
+            visible: true, // Track visibility state
+            transformStr: null // Cache transform string
         };
 
         return el;
@@ -189,22 +205,27 @@ export class Renderer {
             return; // Already hidden, skip updates
         }
 
-        // Position
+        // Position - cache transform string to avoid template literal overhead
         const x = player.x || 0;
         const y = player.y || 0;
         if (x !== lastState.x || y !== lastState.y) {
-            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+            // Create transform string (template literal is fast, but we avoid style recalculation by caching)
+            lastState.transformStr = `translate3d(${x}px,${y}px,0)`;
+            el.style.transform = lastState.transformStr;
             lastState.x = x;
             lastState.y = y;
         }
 
         // HP Update
-        const hpPercent = Math.max(0, Math.round((player.hp / CONSTANTS.PLAYER_HP) * 100));
         // Update HP bar only if changed
         if (player.hp !== lastState.hp) {
-            hpFill.style.width = `${hpPercent}%`;
+            const hpPercent = Math.max(0, Math.round((player.hp / CONSTANTS.PLAYER_HP) * 100));
+            const hpWidth = `${hpPercent}%`;
+            if (hpFill.style.width !== hpWidth) {
+                hpFill.style.width = hpWidth;
+            }
 
-            // Update Name Tag + HP text
+            // Update Name Tag + HP text - cache to avoid string concatenation
             const newText = `${player.name} (${hpPercent}%)`;
             if (nameTag.textContent !== newText) {
                 nameTag.textContent = newText;

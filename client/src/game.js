@@ -16,6 +16,11 @@ export class Game {
 
         this.players = [];
         this.localId = null;
+        
+        // Network input throttling - send at 30Hz instead of 60Hz to reduce overhead
+        this.lastInputSendTime = 0;
+        this.inputSendInterval = 1000 / 30; // 30Hz = ~33ms
+        this.pendingInput = null;
 
         // FPS tracking with self-correcting fixed timestep
         this.frameCount = 0;
@@ -37,6 +42,9 @@ export class Game {
         this.lastTimerStr = '';
         this.lastFpsText = '';
         this.lastFpsClasses = { critical: false, low: false };
+        this.lastTimerValue = -1; // Cache timer value to avoid recalculating
+        this.localPlayer = null; // Cache local player reference
+        this.waitingScreenVisible = false; // Cache waiting screen visibility
 
         // UI Elements Cache - cache all DOM references to avoid per-frame queries
         this.waitingScreen = document.getElementById('waiting-screen');
@@ -110,6 +118,8 @@ export class Game {
         this.frameCount = 0;
         this.updateCount = 0;
         this.accumulator = 0;
+        this.lastInputSendTime = now;
+        this.lastTimerValue = -1;
 
         // Fixed timestep loop using requestAnimationFrame with accumulator pattern
         // Processes 2 updates per frame when rendering is slow to maintain 60+ FPS updates
@@ -138,33 +148,59 @@ export class Game {
             this.localId = this.network.socket.id;
         }
 
-        const localPlayer = this.players.find(p => p.id === this.localId);
+        // Cache local player reference - only find when ID changes or player not found
+        // Since server sends new objects each update, we need to find by ID each time
+        // But we can optimize by checking if we still have the same ID first
+        if (this.localId) {
+            // Use for loop instead of find() for better performance
+            this.localPlayer = null;
+            for (let i = 0; i < this.players.length; i++) {
+                if (this.players[i].id === this.localId) {
+                    this.localPlayer = this.players[i];
+                    break;
+                }
+            }
+        } else {
+            this.localPlayer = null;
+        }
 
         if (this.waitingScreen && this.waitingTimer && state.timer !== undefined) {
-            const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
-            const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
-            const timeStr = `${minutes}:${seconds}`;
-
-            if (localPlayer && localPlayer.isWaiting) {
-                if (this.waitingScreen.classList.contains('hidden')) {
+            const shouldShowWaiting = this.localPlayer && this.localPlayer.isWaiting;
+            
+            // Only update visibility when it changes
+            if (shouldShowWaiting !== this.waitingScreenVisible) {
+                if (shouldShowWaiting) {
                     this.waitingScreen.classList.remove('hidden');
-                }
-                this.waitingTimer.textContent = timeStr;
-            } else {
-                if (!this.waitingScreen.classList.contains('hidden')) {
+                } else {
                     this.waitingScreen.classList.add('hidden');
+                }
+                this.waitingScreenVisible = shouldShowWaiting;
+            }
+            
+            // Only update timer text if waiting screen is visible
+            if (shouldShowWaiting) {
+                const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
+                const timeStr = `${minutes}:${seconds}`;
+                if (this.waitingTimer.textContent !== timeStr) {
+                    this.waitingTimer.textContent = timeStr;
                 }
             }
         }
 
         if (state.timer !== undefined && this.timerEl) {
-            const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
-            const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
-            const newTimerStr = `${minutes}:${seconds}`;
-            // Only update if timer string changed and doesn't contain "(PAUSED)"
-            if (this.lastTimerStr !== newTimerStr && !this.timerEl.textContent.includes('(PAUSED)')) {
-                this.timerEl.textContent = newTimerStr;
-                this.lastTimerStr = newTimerStr;
+            // Only recalculate timer string if timer value actually changed
+            const timerValue = Math.floor(state.timer);
+            if (timerValue !== this.lastTimerValue) {
+                this.lastTimerValue = timerValue;
+                const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
+                const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
+                const newTimerStr = `${minutes}:${seconds}`;
+                // Only update if timer string changed and doesn't contain "(PAUSED)"
+                if (this.lastTimerStr !== newTimerStr && !this.timerEl.textContent.includes('(PAUSED)')) {
+                    this.timerEl.textContent = newTimerStr;
+                    this.lastTimerStr = newTimerStr;
+                }
             }
         }
 
@@ -180,14 +216,17 @@ export class Game {
             const scoreSignature = sortedPlayers.map(p => `${p.id}:${p.score}:${p.name}`).join('|');
 
             if (this.lastScoreStr !== scoreSignature) {
-                this.scoreboardEl.innerHTML = '';
+                // Use DocumentFragment to batch DOM updates and reduce reflows
+                const fragment = document.createDocumentFragment();
                 sortedPlayers.forEach(p => {
                     const item = document.createElement('div');
                     item.className = 'score-item';
                     item.style.color = p.color;
                     item.textContent = `${p.name}: ${p.score}`;
-                    this.scoreboardEl.appendChild(item);
+                    fragment.appendChild(item);
                 });
+                this.scoreboardEl.innerHTML = '';
+                this.scoreboardEl.appendChild(fragment);
                 this.lastScoreStr = scoreSignature;
             }
         }
@@ -359,6 +398,9 @@ export class Game {
             this.accumulator = this.fixedDeltaTime * 3;
         }
 
+        // Send throttled input (30Hz instead of 60Hz)
+        this.sendThrottledInput(timestamp);
+        
         // Render every frame (smooth visuals)
         this.render();
         this.frameCount++;
@@ -408,14 +450,24 @@ export class Game {
 
     update(dt) {
         const inputState = this.input.getState();
-        const player = this.players.find(p => p.id === this.localId);
+        const player = this.localPlayer || this.players.find(p => p.id === this.localId);
 
         // Client side sound trigger for jump
         if (player && inputState.jump && player.isGrounded) {
             this.audio.playJump();
         }
 
-        this.network.sendInput(inputState);
+        // Throttle network input sends to 30Hz instead of 60Hz
+        // Store the latest input state and send it at a lower frequency
+        this.pendingInput = inputState;
+    }
+    
+    // Send pending input at throttled rate (called from game loop)
+    sendThrottledInput(timestamp) {
+        if (this.pendingInput && (timestamp - this.lastInputSendTime) >= this.inputSendInterval) {
+            this.network.sendInput(this.pendingInput);
+            this.lastInputSendTime = timestamp;
+        }
     }
 
     render() {
