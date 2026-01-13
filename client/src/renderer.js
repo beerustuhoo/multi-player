@@ -57,15 +57,15 @@ export class Renderer {
         el.style.top = `${pu.y}px`;
         el.style.borderRadius = '50%';
         el.style.boxShadow = '0 0 10px white';
-        el.style.contain = 'strict'; // Optimization: strict containment for better performance
-        
-        // Use data attribute for CSS styling instead of innerHTML (avoids creating inner div)
+        el.style.contain = 'layout style paint'; // Optimization: hints to browser
+
+        // Color based on type
         if (pu.type === CONSTANTS.POWERUP_TYPES.SPEED_BOOST) {
             el.style.backgroundColor = 'yellow';
-            el.setAttribute('data-type', 'speed');
+            el.innerHTML = '<div style="text-align:center; line-height:30px; font-weight:bold; color:black">S</div>';
         } else {
             el.style.backgroundColor = 'red';
-            el.setAttribute('data-type', 'damage');
+            el.innerHTML = '<div style="text-align:center; line-height:30px; font-weight:bold; color:white">D</div>';
         }
 
         return el;
@@ -108,8 +108,8 @@ export class Renderer {
         el.style.top = '0';
         el.style.left = '0';
         el.style.willChange = 'transform';
-        // Optimization: strict containment for maximum performance
-        el.style.contain = 'strict';
+        // Optimization: contain layout/paint to reduce reflow impact
+        el.style.contain = 'layout style paint';
 
         // Stickman Container
         const stickman = document.createElement('div');

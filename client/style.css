@@ -336,7 +336,6 @@ input {
   backface-visibility: hidden;
   /* Improve performance */
   -webkit-backface-visibility: hidden;
-  contain: strict;
 }
 
 /* Player Stickman Styles */
@@ -345,7 +344,6 @@ input {
   width: 100%;
   height: 100%;
   will-change: transform;
-  contain: strict;
 }
 
 .head {
@@ -376,7 +374,7 @@ input {
   height: 25px;
   background: #fff;
   transform-origin: top center;
-  /* Removed transition for better performance - transforms are handled in JS */
+  transition: transform 0.1s;
 }
 
 .arm-left {
@@ -434,26 +432,6 @@ input {
   width: 100%;
   height: 4px;
   background-color: red;
-}
-
-/* Powerup styles - using data attributes instead of inner divs */
-.powerup {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: bold;
-  font-size: 20px;
-  contain: strict;
-}
-
-.powerup[data-type="speed"]::before {
-  content: 'S';
-  color: black;
-}
-
-.powerup[data-type="damage"]::before {
-  content: 'D';
-  color: white;
 }
 
 
