@@ -35,6 +35,17 @@ export class Game {
 
     // Event Handlers for UI
     setupUI() {
+        // Handle tab visibility changes - reset timing when tab regains focus
+        document.addEventListener('visibilitychange', () => {
+            if (!document.hidden && this.isRunning) {
+                // Tab regained focus - reset timing to prevent huge delta time
+                const now = performance.now();
+                this.lastUpdateTime = now;
+                this.lastFrameTime = now;
+                this.accumulator = 0;
+            }
+        });
+
         // Pause/Resume
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape' && this.isRunning) {
@@ -246,12 +257,15 @@ export class Game {
             this.lastUpdateTime = timestamp;
         }
 
-        // Calculate delta time, cap to prevent huge jumps
+        // Calculate delta time, cap to prevent huge jumps (e.g., when tab regains focus)
         let dt = timestamp - this.lastUpdateTime;
-        const maxDelta = this.targetFrameTime * 3; // Max 3 frames worth
+        const maxDelta = this.targetFrameTime * 3; // Max 3 frames worth (50ms)
         if (dt > maxDelta) {
+            // Large gap detected (tab was hidden, browser throttled, etc.)
+            // Reset timing to prevent game state issues
             dt = this.targetFrameTime;
-            this.accumulator = 0; // Reset on large gap
+            this.accumulator = 0;
+            this.lastUpdateTime = timestamp - this.targetFrameTime; // Set to 1 frame ago
         }
 
         // Fixed timestep accumulator - processes multiple updates per frame to maintain 60 FPS
