@@ -34,12 +34,19 @@ export class Game {
 
         // Optimization: Track last states to avoid DOM thrashing
         this.lastScoreStr = '';
+        this.lastTimerStr = '';
+        this.lastFpsText = '';
+        this.lastFpsClasses = { critical: false, low: false };
 
-        // UI Elements Cache
+        // UI Elements Cache - cache all DOM references to avoid per-frame queries
         this.waitingScreen = document.getElementById('waiting-screen');
         this.waitingTimer = document.getElementById('waiting-timer');
         this.timerEl = document.getElementById('timer');
         this.scoreboardEl = document.getElementById('scoreboard');
+        this.fpsCounterEl = document.getElementById('fps-counter');
+        this.msgArea = document.getElementById('message-area');
+        this.pauseMenu = document.getElementById('pause-menu');
+        this.pauseStatus = document.getElementById('pause-status');
     }
 
     // Event Handlers for UI
@@ -154,7 +161,8 @@ export class Game {
             const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
             const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
             const newTimerStr = `${minutes}:${seconds}`;
-            if (this.lastTimerStr !== newTimerStr) {
+            // Only update if timer string changed and doesn't contain "(PAUSED)"
+            if (this.lastTimerStr !== newTimerStr && !this.timerEl.textContent.includes('(PAUSED)')) {
                 this.timerEl.textContent = newTimerStr;
                 this.lastTimerStr = newTimerStr;
             }
@@ -172,13 +180,13 @@ export class Game {
             const scoreSignature = sortedPlayers.map(p => `${p.id}:${p.score}:${p.name}`).join('|');
 
             if (this.lastScoreStr !== scoreSignature) {
-                scoreboardEl.innerHTML = '';
+                this.scoreboardEl.innerHTML = '';
                 sortedPlayers.forEach(p => {
                     const item = document.createElement('div');
                     item.className = 'score-item';
                     item.style.color = p.color;
                     item.textContent = `${p.name}: ${p.score}`;
-                    scoreboardEl.appendChild(item);
+                    this.scoreboardEl.appendChild(item);
                 });
                 this.lastScoreStr = scoreSignature;
             }
@@ -191,18 +199,16 @@ export class Game {
         // Optional: show "GO!" message
         this.audio.playTone(600, 'sine', 0.5);
         // Clear system messages
-        const msgArea = document.getElementById('message-area');
-        if (msgArea) msgArea.innerText = '';
+        if (this.msgArea) this.msgArea.innerText = '';
     }
 
     onServerMessage(msg) {
-        const msgArea = document.getElementById('message-area');
-        if (msgArea) {
-            msgArea.textContent = msg;
+        if (this.msgArea) {
+            this.msgArea.textContent = msg;
             // Clear after a few seconds
             setTimeout(() => {
-                if (msgArea.textContent === msg) {
-                    msgArea.textContent = '';
+                if (this.msgArea && this.msgArea.textContent === msg) {
+                    this.msgArea.textContent = '';
                 }
             }, 5000);
         }
@@ -254,24 +260,43 @@ export class Game {
     }
 
     onGamePaused(data) {
-        const pauseMenu = document.getElementById('pause-menu');
-        const timerEl = document.getElementById('timer');
-        const pauseStatus = document.getElementById('pause-status');
-
         // Handle both boolean (old) and object (new) payload for backward compatibility/robustness
         const isPaused = typeof data === 'object' ? data.isPaused : data;
         const pauser = typeof data === 'object' ? data.pauser : null;
 
         if (isPaused) {
-            pauseMenu.classList.remove('hidden');
-            if (timerEl) timerEl.innerText += " (PAUSED)";
-            if (pauseStatus && pauser) {
-                pauseStatus.innerText = `Paused by ${pauser}`;
-            } else if (pauseStatus) {
-                pauseStatus.innerText = '';
+            if (this.pauseMenu && !this.pauseMenu.classList.contains('hidden')) {
+                // Only update if not already visible to avoid unnecessary DOM manipulation
+            } else if (this.pauseMenu) {
+                this.pauseMenu.classList.remove('hidden');
+            }
+            
+            // Only update timer text if it doesn't already contain "(PAUSED)"
+            if (this.timerEl && !this.timerEl.innerText.includes('(PAUSED)')) {
+                this.timerEl.innerText += " (PAUSED)";
+            }
+            
+            if (this.pauseStatus) {
+                if (pauser) {
+                    const newText = `Paused by ${pauser}`;
+                    if (this.pauseStatus.innerText !== newText) {
+                        this.pauseStatus.innerText = newText;
+                    }
+                } else {
+                    if (this.pauseStatus.innerText !== '') {
+                        this.pauseStatus.innerText = '';
+                    }
+                }
             }
         } else {
-            pauseMenu.classList.add('hidden');
+            if (this.pauseMenu && !this.pauseMenu.classList.contains('hidden')) {
+                this.pauseMenu.classList.add('hidden');
+            }
+            
+            // Remove "(PAUSED)" from timer if present
+            if (this.timerEl && this.timerEl.innerText.includes('(PAUSED)')) {
+                this.timerEl.innerText = this.timerEl.innerText.replace(' (PAUSED)', '');
+            }
         }
     }
 
@@ -399,22 +424,32 @@ export class Game {
     }
 
     updateFPSCounter() {
-        const fpsCounterEl = document.getElementById('fps-counter');
-        if (!fpsCounterEl) return;
+        if (!this.fpsCounterEl) return;
 
         // Calculate current FPS from frame count (smoother display)
         const currentRenderFPS = Math.round(this.fps || 60);
         const currentUpdateFPS = Math.round(this.updateFPS || 60);
 
-        // Update text
-        fpsCounterEl.textContent = `FPS: ${currentRenderFPS} / ${currentUpdateFPS}`;
+        // Update text only if changed
+        const newText = `FPS: ${currentRenderFPS} / ${currentUpdateFPS}`;
+        if (this.fpsCounterEl.textContent !== newText) {
+            this.fpsCounterEl.textContent = newText;
+        }
 
-        // Update color based on FPS
-        fpsCounterEl.classList.remove('low-fps', 'critical-fps');
-        if (currentRenderFPS < 30) {
-            fpsCounterEl.classList.add('critical-fps');
-        } else if (currentRenderFPS < 60) {
-            fpsCounterEl.classList.add('low-fps');
+        // Update color based on FPS - only when state changes
+        let shouldAddCritical = currentRenderFPS < 30;
+        let shouldAddLow = currentRenderFPS >= 30 && currentRenderFPS < 60;
+        let hasCritical = this.fpsCounterEl.classList.contains('critical-fps');
+        let hasLow = this.fpsCounterEl.classList.contains('low-fps');
+
+        if (shouldAddCritical && !hasCritical) {
+            this.fpsCounterEl.classList.remove('low-fps');
+            this.fpsCounterEl.classList.add('critical-fps');
+        } else if (shouldAddLow && !hasLow) {
+            this.fpsCounterEl.classList.remove('critical-fps');
+            this.fpsCounterEl.classList.add('low-fps');
+        } else if (!shouldAddCritical && !shouldAddLow && (hasCritical || hasLow)) {
+            this.fpsCounterEl.classList.remove('low-fps', 'critical-fps');
         }
     }
 }

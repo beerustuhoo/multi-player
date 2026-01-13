@@ -167,7 +167,8 @@ export class Renderer {
             hp: null,
             facing: null,
             action: null,
-            buffs: null
+            buffs: null,
+            visible: true // Track visibility state
         };
 
         return el;
@@ -177,16 +178,15 @@ export class Renderer {
         const { stickman, nameTag, hpFill } = el._refs;
         const lastState = el._state;
 
-        // Visibility check
-        if (player.hp <= 0) {
-            if (el.style.display !== 'none') {
-                el.style.display = 'none';
-            }
-            return;
-        } else {
-            if (el.style.display === 'none') {
-                el.style.display = 'block';
-            }
+        // Visibility check - only update when state changes
+        const isVisible = player.hp > 0;
+        const wasVisible = lastState.visible !== false; // null/undefined means visible
+        if (isVisible !== wasVisible) {
+            el.style.display = isVisible ? 'block' : 'none';
+            lastState.visible = isVisible;
+            if (!isVisible) return; // Early return if hidden
+        } else if (!isVisible) {
+            return; // Already hidden, skip updates
         }
 
         // Position
@@ -212,12 +212,12 @@ export class Renderer {
             lastState.hp = player.hp;
         }
 
-        // Orientation
+        // Orientation - only update transform when facing changes
         if (player.facing !== lastState.facing) {
-            if (player.facing === 'left') {
-                stickman.style.transform = 'scaleX(-1)';
-            } else {
-                stickman.style.transform = 'scaleX(1)';
+            const newTransform = player.facing === 'left' ? 'scaleX(-1)' : 'scaleX(1)';
+            // Only update if transform actually changed (handles case where position transform might be combined)
+            if (stickman.style.transform !== newTransform) {
+                stickman.style.transform = newTransform;
             }
             lastState.facing = player.facing;
         }

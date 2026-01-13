@@ -25,7 +25,7 @@ export const CONSTANTS = {
     KICK_COOLDOWN: 500,
     KICK_RANGE: 90,
 
-    TICK_RATE: 30, // Server tick rate
+    TICK_RATE: 60, // Server tick rate (60 Hz to match client render rate)
 
     // Power-Ups
     POWERUP_TYPES: {
