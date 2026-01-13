@@ -15,6 +15,10 @@ export class GameRoom {
         this.powerups = new Map(); // id -> powerup object
         this.nextPowerupId = 1;
         this.nextPowerupSpawn = Date.now() + Math.random() * (CONSTANTS.POWERUP_SPAWN_INTERVAL_MAX - CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN) + CONSTANTS.POWERUP_SPAWN_INTERVAL_MIN;
+        
+        // Throttle state updates to 30Hz (game logic still runs at 60Hz)
+        this.lastStateUpdateTime = 0;
+        this.stateUpdateInterval = 1000 / 30; // 30Hz = ~33.33ms
 
         // Define vibrant colors
         this.availableColors = [
@@ -199,6 +203,7 @@ export class GameRoom {
         this.isPaused = false;
         this.lastTime = Date.now();
         this.lastTimerUpdate = Date.now();
+        this.lastStateUpdateTime = Date.now();
         this.timer = 180; // Reset timer
         this.powerups.clear();
         this.nextPowerupSpawn = Date.now() + 5000; // First spawn in 5s
@@ -357,12 +362,16 @@ export class GameRoom {
             }
         }
 
-        this.io.to(this.roomId).emit('stateUpdate', {
-            players: Array.from(this.players.values()),
-            powerups: Array.from(this.powerups.values()),
-            time: now,
-            timer: this.timer
-        });
+        // Throttle state updates to 30Hz (game logic still runs at 60Hz for smooth gameplay)
+        if ((now - this.lastStateUpdateTime) >= this.stateUpdateInterval) {
+            this.io.to(this.roomId).emit('stateUpdate', {
+                players: Array.from(this.players.values()),
+                powerups: Array.from(this.powerups.values()),
+                time: now,
+                timer: this.timer
+            });
+            this.lastStateUpdateTime = now;
+        }
     }
 
     spawnPowerup() {

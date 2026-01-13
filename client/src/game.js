@@ -438,8 +438,8 @@ export class Game {
             }
         }
 
-        // Update FPS counter display more frequently (every 100ms for smooth updates)
-        if (this.lastFPSUpdateTime === 0 || (timestamp - this.lastFPSUpdateTime) >= 100) {
+        // Update FPS counter display every 1 second
+        if (this.lastFPSUpdateTime === 0 || (timestamp - this.lastFPSUpdateTime) >= 1000) {
             this.updateFPSCounter();
             this.lastFPSUpdateTime = timestamp;
         }
