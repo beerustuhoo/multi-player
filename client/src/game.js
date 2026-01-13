@@ -31,6 +31,10 @@ export class Game {
         this.lastUpdateTime = 0; // Last update timestamp
         this.lastFrameTime = 0; // For smooth FPS calculation
         this.lastFPSUpdateTime = 0; // Track when to update FPS display
+
+        // Optimization: Track last states to avoid DOM thrashing
+        this.lastTimerStr = '';
+        this.lastScoreStr = '';
     }
 
     // Event Handlers for UI
@@ -122,25 +126,58 @@ export class Game {
             this.localId = this.network.socket.id;
         }
 
+        const localPlayer = this.players.find(p => p.id === this.localId);
+        const waitingScreen = document.getElementById('waiting-screen');
+        const waitingTimer = document.getElementById('waiting-timer');
+
+        if (waitingScreen && waitingTimer && state.timer !== undefined) {
+            const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
+            const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
+            const timeStr = `${minutes}:${seconds}`;
+
+            if (localPlayer && localPlayer.isWaiting) {
+                if (waitingScreen.classList.contains('hidden')) {
+                    waitingScreen.classList.remove('hidden');
+                }
+                waitingTimer.textContent = timeStr;
+            } else {
+                if (!waitingScreen.classList.contains('hidden')) {
+                    waitingScreen.classList.add('hidden');
+                }
+            }
+        }
+
         const timerEl = document.getElementById('timer');
         if (state.timer !== undefined && timerEl) {
             const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
             const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
-            timerEl.innerText = `${minutes}:${seconds}`;
+            const newTimerStr = `${minutes}:${seconds}`;
+            if (this.lastTimerStr !== newTimerStr) {
+                timerEl.textContent = newTimerStr;
+                this.lastTimerStr = newTimerStr;
+            }
         }
 
-        // Update Scoreboard
+        // Update Scoreboard - Only if scores/names change
         const scoreboardEl = document.getElementById('scoreboard');
         if (scoreboardEl && this.players) {
-            scoreboardEl.innerHTML = '';
+            // Create a simple signature of the scoreboard state
+            // map players to string "id-score" and sort by score
+            // Actually we render sorted by score, so we should check the sorted order signature
             const sortedPlayers = [...this.players].sort((a, b) => b.score - a.score);
-            sortedPlayers.forEach(p => {
-                const item = document.createElement('div');
-                item.className = 'score-item';
-                item.style.color = p.color;
-                item.innerText = `${p.name}: ${p.score}`;
-                scoreboardEl.appendChild(item);
-            });
+            const scoreSignature = sortedPlayers.map(p => `${p.id}:${p.score}:${p.name}`).join('|');
+
+            if (this.lastScoreStr !== scoreSignature) {
+                scoreboardEl.innerHTML = '';
+                sortedPlayers.forEach(p => {
+                    const item = document.createElement('div');
+                    item.className = 'score-item';
+                    item.style.color = p.color;
+                    item.textContent = `${p.name}: ${p.score}`;
+                    scoreboardEl.appendChild(item);
+                });
+                this.lastScoreStr = scoreSignature;
+            }
         }
     }
 
@@ -157,11 +194,11 @@ export class Game {
     onServerMessage(msg) {
         const msgArea = document.getElementById('message-area');
         if (msgArea) {
-            msgArea.innerText = msg;
+            msgArea.textContent = msg;
             // Clear after a few seconds
             setTimeout(() => {
-                if (msgArea.innerText === msg) {
-                    msgArea.innerText = '';
+                if (msgArea.textContent === msg) {
+                    msgArea.textContent = '';
                 }
             }, 5000);
         }
@@ -177,7 +214,7 @@ export class Game {
 
         gameScreen.classList.add('hidden');
         endScreen.classList.remove('hidden');
-        winnerText.innerText = `${data.winner} (${data.reason})`;
+        winnerText.textContent = `${data.winner} (${data.reason})`;
 
         const endScores = document.getElementById('end-scores');
         if (endScores && data.scores) {

@@ -87,6 +87,14 @@ export class GameRoom {
             }
         };
 
+        // Check if game is already running
+        if (this.isRunning) {
+            player.isWaiting = true;
+            player.hp = 0; // Mark as dead effectively
+            // Force this player to game screen
+            socket.emit('gameStart');
+        }
+
         this.players.set(socket.id, player);
         socket.join(this.roomId);
 
@@ -279,7 +287,7 @@ export class GameRoom {
         }
 
         for (const player of this.players.values()) {
-            if (player.hp <= 0) continue;
+            if (player.hp <= 0 || player.isWaiting) continue;
 
             // Buff Expiration
             if (player.buffs.speed > 0 && now > player.buffs.speed) player.buffs.speed = 0;
@@ -400,7 +408,7 @@ export class GameRoom {
         };
 
         for (const target of this.players.values()) {
-            if (target.id === attacker.id || target.hp <= 0) continue;
+            if (target.id === attacker.id || target.hp <= 0 || target.isWaiting) continue;
 
             const targetRect = {
                 x: target.x,
@@ -435,6 +443,7 @@ export class GameRoom {
         player.vy = 0;
         player.action = null;
         player.actionTimer = 0;
+        player.isWaiting = false; // Reset waiting status on respawn
         // Reset buffs on death? Let's say yes.
         player.buffs.speed = 0;
         player.buffs.damage = 0;

@@ -91,3 +91,7 @@ startGameBtn.addEventListener('click', () => {
 document.getElementById('lobby-return-btn').addEventListener('click', () => {
     window.location.reload(); // Simple reload to go back to title for now
 });
+
+document.getElementById('waiting-leave-btn').addEventListener('click', () => {
+    window.location.reload();
+});

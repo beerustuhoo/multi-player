@@ -48,6 +48,7 @@ export class Renderer {
         el.style.top = `${pu.y}px`;
         el.style.borderRadius = '50%';
         el.style.boxShadow = '0 0 10px white';
+        el.style.contain = 'layout style paint'; // Optimization: hints to browser
 
         // Color based on type
         if (pu.type === CONSTANTS.POWERUP_TYPES.SPEED_BOOST) {
@@ -92,6 +93,8 @@ export class Renderer {
         el.style.top = '0';
         el.style.left = '0';
         el.style.willChange = 'transform';
+        // Optimization: contain layout/paint to reduce reflow impact
+        el.style.contain = 'layout style paint';
 
         // Stickman Container
         const stickman = document.createElement('div');
@@ -130,7 +133,7 @@ export class Renderer {
 
         // Name tag
         const nameTag = document.createElement('div');
-        nameTag.innerText = player.name;
+        nameTag.textContent = player.name;
         nameTag.className = 'name-tag';
         el.appendChild(nameTag);
 
@@ -152,68 +155,101 @@ export class Renderer {
         hpBar.appendChild(hpFill);
         el.appendChild(hpBar);
 
+        // Cache references and last state
+        el._refs = {
+            stickman,
+            nameTag,
+            hpFill,
+        };
+        el._state = {
+            x: null,
+            y: null,
+            hp: null,
+            facing: null,
+            action: null,
+            buffs: null
+        };
+
         return el;
     }
 
     updatePlayerTransform(el, player) {
+        const { stickman, nameTag, hpFill } = el._refs;
+        const lastState = el._state;
+
+        // Visibility check
         if (player.hp <= 0) {
-            el.style.display = 'none';
+            if (el.style.display !== 'none') {
+                el.style.display = 'none';
+            }
             return;
         } else {
-            el.style.display = 'block';
-        }
-
-        const x = player.x || 0;
-        const y = player.y || 0;
-        el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
-
-        // HP Update
-        const hpFill = el.querySelector('.hp-fill');
-        let hpPercent = 0;
-        if (hpFill) {
-            hpPercent = Math.max(0, Math.round((player.hp / CONSTANTS.PLAYER_HP) * 100));
-            hpFill.style.width = `${hpPercent}%`;
-        }
-
-        // Update Name Tag with HP
-        const nameTag = el.querySelector('.name-tag');
-        if (nameTag) {
-            // Only update if text content is different to avoid layout thrashing
-            const newText = `${player.name} (${hpPercent}%)`;
-            if (nameTag.innerText !== newText) {
-                nameTag.innerText = newText;
+            if (el.style.display === 'none') {
+                el.style.display = 'block';
             }
         }
 
-        // Animation Logic
-        const stickman = el.querySelector('.stickman');
-        if (stickman) {
-            // Flip
+        // Position
+        const x = player.x || 0;
+        const y = player.y || 0;
+        if (x !== lastState.x || y !== lastState.y) {
+            el.style.transform = `translate3d(${x}px, ${y}px, 0)`;
+            lastState.x = x;
+            lastState.y = y;
+        }
+
+        // HP Update
+        const hpPercent = Math.max(0, Math.round((player.hp / CONSTANTS.PLAYER_HP) * 100));
+        // Update HP bar only if changed
+        if (player.hp !== lastState.hp) {
+            hpFill.style.width = `${hpPercent}%`;
+
+            // Update Name Tag + HP text
+            const newText = `${player.name} (${hpPercent}%)`;
+            if (nameTag.textContent !== newText) {
+                nameTag.textContent = newText;
+            }
+            lastState.hp = player.hp;
+        }
+
+        // Orientation
+        if (player.facing !== lastState.facing) {
             if (player.facing === 'left') {
                 stickman.style.transform = 'scaleX(-1)';
             } else {
                 stickman.style.transform = 'scaleX(1)';
             }
+            lastState.facing = player.facing;
+        }
 
-            // Action classes
+        // Action classes
+        if (player.action !== lastState.action) {
             stickman.classList.remove('punching', 'kicking');
             if (player.action === 'punch') {
                 stickman.classList.add('punching');
             } else if (player.action === 'kick') {
                 stickman.classList.add('kicking');
             }
+            lastState.action = player.action;
+        }
 
-            // Visual Buffs
-            // We'll use border/shadow on the stickman container wrapper or head for simplicity
-            // But stickman has transform flip, so let's apply to el (main container)
-            // Or better, add a glow to the stickman
+        // Visual Buffs - Filter is expensive, only update if buffs changed
+        const speedBuff = player.buffs?.speed || 0;
+        const damageBuff = player.buffs?.damage || 0;
+        // Simple hash or comparison for buffs
+        const buffsChanged = !lastState.buffs ||
+            lastState.buffs.speed !== speedBuff ||
+            lastState.buffs.damage !== damageBuff;
 
-            stickman.style.filter = 'none';
-            if (player.buffs && player.buffs.speed > 0) {
+        if (buffsChanged) {
+            if (speedBuff > 0) {
                 stickman.style.filter = 'drop-shadow(0 0 10px yellow)';
-            } else if (player.buffs && player.buffs.damage > 0) {
+            } else if (damageBuff > 0) {
                 stickman.style.filter = 'drop-shadow(0 0 10px red)';
+            } else {
+                stickman.style.filter = 'none';
             }
+            lastState.buffs = { speed: speedBuff, damage: damageBuff };
         }
     }
 }

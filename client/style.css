@@ -47,7 +47,8 @@ input {
 #join-screen,
 #lobby-screen,
 #end-screen,
-#pause-menu {
+#pause-menu,
+#waiting-screen {
   display: flex;
   flex-direction: column;
   justify-content: center;
