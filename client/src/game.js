@@ -84,8 +84,8 @@ export class Game {
         this.updateCount = 0;
         this.accumulator = 0;
 
-        // Fixed timestep loop using only requestAnimationFrame
-        // Optimized for slower PCs: processes one update per frame to prevent overload
+        // Fixed timestep loop using requestAnimationFrame with accumulator pattern
+        // Processes 2 updates per frame when rendering is slow to maintain 60+ FPS updates
         requestAnimationFrame(this.gameLoop.bind(this));
     }
 
@@ -254,24 +254,29 @@ export class Game {
             this.accumulator = 0; // Reset on large gap
         }
 
-        // Fixed timestep accumulator - ensures 60 FPS updates when possible
+        // Fixed timestep accumulator - processes multiple updates per frame to maintain 60 FPS
+        // This is the standard approach: when rendering is slow (37 FPS), we process 2 updates
+        // per frame to achieve ~74 FPS updates, maintaining smooth gameplay
         this.accumulator += dt;
 
-        // Update at fixed 60 FPS rate (16.67ms per update)
-        // Process only 1 update per frame for slower PC compatibility
-        // This allows the game to run slower naturally rather than catching up and causing stutter
-        if (this.accumulator >= this.fixedDeltaTime) {
+        // Process multiple updates per frame (up to 2-3) to catch up to 60 FPS
+        // When rendering at 37 FPS: 2 updates/frame = ~74 FPS updates (exceeds 60 FPS target)
+        // Capped at 2 updates per frame for slower PC compatibility (prevents overload)
+        const maxUpdatesPerFrame = 2;
+        let updatesThisFrame = 0;
+
+        while (this.accumulator >= this.fixedDeltaTime && updatesThisFrame < maxUpdatesPerFrame) {
             this.update(this.fixedDeltaTime);
             this.accumulator -= this.fixedDeltaTime;
             this.lastUpdateTime += this.fixedDeltaTime;
             this.updateCount++;
+            updatesThisFrame++;
         }
 
-        // Clamp accumulator to prevent infinite growth (allow up to 5 frames worth)
-        // This prevents lag spikes from accumulating forever
-        const maxAccumulator = this.fixedDeltaTime * 5;
-        if (this.accumulator > maxAccumulator) {
-            this.accumulator = maxAccumulator;
+        // Clamp accumulator to prevent infinite catch-up (max 3 frames worth)
+        // This prevents lag spikes from accumulating forever while allowing catch-up
+        if (this.accumulator > this.fixedDeltaTime * 3) {
+            this.accumulator = this.fixedDeltaTime * 3;
         }
 
         // Render every frame (smooth visuals)
