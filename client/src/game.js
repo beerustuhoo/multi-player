@@ -33,8 +33,13 @@ export class Game {
         this.lastFPSUpdateTime = 0; // Track when to update FPS display
 
         // Optimization: Track last states to avoid DOM thrashing
-        this.lastTimerStr = '';
         this.lastScoreStr = '';
+
+        // UI Elements Cache
+        this.waitingScreen = document.getElementById('waiting-screen');
+        this.waitingTimer = document.getElementById('waiting-timer');
+        this.timerEl = document.getElementById('timer');
+        this.scoreboardEl = document.getElementById('scoreboard');
     }
 
     // Event Handlers for UI
@@ -127,40 +132,36 @@ export class Game {
         }
 
         const localPlayer = this.players.find(p => p.id === this.localId);
-        const waitingScreen = document.getElementById('waiting-screen');
-        const waitingTimer = document.getElementById('waiting-timer');
 
-        if (waitingScreen && waitingTimer && state.timer !== undefined) {
+        if (this.waitingScreen && this.waitingTimer && state.timer !== undefined) {
             const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
             const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
             const timeStr = `${minutes}:${seconds}`;
 
             if (localPlayer && localPlayer.isWaiting) {
-                if (waitingScreen.classList.contains('hidden')) {
-                    waitingScreen.classList.remove('hidden');
+                if (this.waitingScreen.classList.contains('hidden')) {
+                    this.waitingScreen.classList.remove('hidden');
                 }
-                waitingTimer.textContent = timeStr;
+                this.waitingTimer.textContent = timeStr;
             } else {
-                if (!waitingScreen.classList.contains('hidden')) {
-                    waitingScreen.classList.add('hidden');
+                if (!this.waitingScreen.classList.contains('hidden')) {
+                    this.waitingScreen.classList.add('hidden');
                 }
             }
         }
 
-        const timerEl = document.getElementById('timer');
-        if (state.timer !== undefined && timerEl) {
+        if (state.timer !== undefined && this.timerEl) {
             const minutes = Math.floor(state.timer / 60).toString().padStart(2, '0');
             const seconds = Math.floor(state.timer % 60).toString().padStart(2, '0');
             const newTimerStr = `${minutes}:${seconds}`;
             if (this.lastTimerStr !== newTimerStr) {
-                timerEl.textContent = newTimerStr;
+                this.timerEl.textContent = newTimerStr;
                 this.lastTimerStr = newTimerStr;
             }
         }
 
         // Update Scoreboard - Only if scores/names change
-        const scoreboardEl = document.getElementById('scoreboard');
-        if (scoreboardEl && this.players) {
+        if (this.scoreboardEl && this.players) {
             // Filter out waiting players from scoreboard
             const activePlayers = this.players.filter(p => !p.isWaiting);
 
