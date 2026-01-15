@@ -107,6 +107,7 @@ export class Renderer {
     createPlayerElement(player) {
         const el = document.createElement('div');
         el.classList.add('player');
+        el.dataset.id = player.id;
         el.style.width = `${CONSTANTS.PLAYER_WIDTH}px`;
         el.style.height = `${CONSTANTS.PLAYER_HEIGHT}px`;
         el.style.position = 'absolute';
@@ -116,6 +117,11 @@ export class Renderer {
         // Optimization: contain layout/paint to reduce reflow impact
         // Removed 'paint' to allow name tag and HP bar to be visible outside element bounds
         el.style.contain = 'layout style';
+
+        // Face (Direction indicator)
+        const face = document.createElement('div');
+        face.className = 'face';
+        el.appendChild(face);
 
         // Stickman Container
         const stickman = document.createElement('div');

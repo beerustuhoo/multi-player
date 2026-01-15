@@ -35,6 +35,7 @@ joinBtn.addEventListener('click', () => {
 const startGameBtn = document.getElementById('start-game-btn');
 const lobbyStatus = document.getElementById('lobby-status');
 const playerList = document.getElementById('player-list');
+import { CONSTANTS } from '../../shared/constants.js';
 
 // Bind Game callbacks to UI
 game.onJoinSuccess = () => {

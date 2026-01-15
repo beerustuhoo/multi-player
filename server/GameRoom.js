@@ -82,6 +82,7 @@ export class GameRoom {
             actionTimer: 0,
             isCrouching: false,
             inputs: { left: false, right: false, jump: false, crouch: false, attack1: false, attack2: false },
+            hatId: CONSTANTS.HATS.NONE, // Default hat
             buffs: {
                 speed: 0,
                 damage: 0
@@ -98,6 +99,14 @@ export class GameRoom {
 
         this.players.set(socket.id, player);
         socket.join(this.roomId);
+
+        socket.on('input', (state) => {
+            this.handleInput(socket.id, state);
+        });
+
+        socket.on('requestStartGame', () => {
+            this.requestStartGame(socket.id);
+        });
 
         // Assign host if none exists
         if (!this.hostId) {

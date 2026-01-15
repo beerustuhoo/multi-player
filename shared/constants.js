@@ -41,7 +41,16 @@ export const CONSTANTS = {
         { x: 700, y: 400, width: 200, height: 20 },
         { x: 500, y: 250, width: 200, height: 20 }
     ],
+
     POWERUP_SPAWN_INTERVAL_MIN: 15000,
     POWERUP_SPAWN_INTERVAL_MAX: 30000,
     POWERUP_SIZE: 30,
+
+    // Hats
+    HATS: {
+        NONE: 0,
+        COWBOY: 1,
+        TOP_HAT: 2,
+        VIKING: 3
+    }
 };

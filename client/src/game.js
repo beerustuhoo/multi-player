@@ -173,12 +173,40 @@ export class Game {
 
             if (this.lastScoreStr !== scoreSignature) {
                 this.scoreboardEl.innerHTML = '';
-                sortedPlayers.forEach(p => {
-                    const item = document.createElement('div');
-                    item.className = 'score-item';
-                    item.style.color = p.color;
-                    item.textContent = `${p.name}: ${p.score}`;
-                    this.scoreboardEl.appendChild(item);
+
+                // Header
+                const header = document.createElement('div');
+                header.className = 'scoreboard-header';
+                header.innerHTML = '<span>Player</span><span>Score</span>';
+                this.scoreboardEl.appendChild(header);
+
+                sortedPlayers.forEach((p, index) => {
+                    const row = document.createElement('div');
+                    row.className = `score-row rank-${index + 1}`;
+                    if (p.id === this.localId) row.classList.add('local-player');
+
+                    // Rank
+                    const rank = document.createElement('div');
+                    rank.className = 'score-rank';
+                    rank.innerText = index + 1; // Or use icons 👑 for #1
+
+                    // Avatar
+                    const avatar = document.createElement('div');
+                    avatar.className = 'score-avatar';
+                    avatar.style.backgroundColor = p.color;
+
+                    // Name
+                    const name = document.createElement('div');
+                    name.className = 'score-name';
+                    name.innerText = p.name;
+
+                    // Score
+                    const score = document.createElement('div');
+                    score.className = 'score-value';
+                    score.innerText = p.score;
+
+                    row.append(rank, avatar, name, score);
+                    this.scoreboardEl.appendChild(row);
                 });
                 this.lastScoreStr = scoreSignature;
             }
