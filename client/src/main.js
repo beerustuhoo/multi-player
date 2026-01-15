@@ -73,8 +73,14 @@ game.onLobbyUpdate = (data) => {
 
     // Handle Start Button
     const amHost = game.network.socket.id === data.hostId;
+    const durationSelect = document.getElementById('game-duration');
+    const controlsLabel = document.querySelector('.lobby-label');
+
     if (amHost) {
         startGameBtn.classList.remove('hidden');
+        if (durationSelect) durationSelect.style.display = 'inline-block';
+        if (controlsLabel) controlsLabel.style.display = 'inline-block';
+
         if (data.canStart) {
             startGameBtn.disabled = false;
             startGameBtn.style.opacity = 1;
@@ -86,6 +92,8 @@ game.onLobbyUpdate = (data) => {
         }
     } else {
         startGameBtn.classList.add('hidden');
+        if (durationSelect) durationSelect.style.display = 'none';
+        if (controlsLabel) controlsLabel.style.display = 'none';
         lobbyStatus.innerText = "Waiting for host to start...";
     }
 };
@@ -103,7 +111,8 @@ game.onJoinError = (msg) => {
 };
 
 startGameBtn.addEventListener('click', () => {
-    game.network.requestStartGame();
+    const duration = parseInt(document.getElementById('game-duration').value);
+    game.network.requestStartGame(duration);
 });
 
 document.getElementById('lobby-return-btn').addEventListener('click', () => {

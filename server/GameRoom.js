@@ -165,7 +165,7 @@ export class GameRoom {
         });
     }
 
-    requestStartGame(socketId) {
+    requestStartGame(socketId, duration) {
         if (this.isRunning) return;
 
         // Only host can start
@@ -173,7 +173,7 @@ export class GameRoom {
 
         // Player count check
         if (this.players.size >= 2 && this.players.size <= 4) {
-            this.startGame();
+            this.startGame(duration);
         }
     }
 
@@ -204,12 +204,20 @@ export class GameRoom {
         this.io.to(this.roomId).emit('serverMessage', msg);
     }
 
-    startGame() {
+    startGame(duration = CONSTANTS.GAME_DURATIONS.MIN_3) {
+        // Validate duration
+        const validDurations = Object.values(CONSTANTS.GAME_DURATIONS);
+        if (!validDurations.includes(duration)) {
+            console.warn('Invalid duration requested, defaulting to 3 mins');
+            duration = CONSTANTS.GAME_DURATIONS.MIN_3;
+        }
+
         this.isRunning = true;
         this.isPaused = false;
         this.lastTime = Date.now();
         this.lastTimerUpdate = Date.now();
-        this.timer = 180; // Reset timer
+        this.timer = duration; // Set timer to selected duration
+
         this.powerups.clear();
         this.nextPowerupSpawn = Date.now() + 5000; // First spawn in 5s
 

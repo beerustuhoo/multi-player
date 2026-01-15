@@ -626,4 +626,36 @@ input {
   height: 2px;
   background: rgba(0, 255, 255, 0.8);
   box-shadow: 0 0 5px rgba(0, 255, 255, 0.8);
+}/* Append to end of file */
+#game-controls {
+  margin-top: 20px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+}
+
+.lobby-label {
+  font-size: 1.2rem;
+  color: #fff;
+}
+
+#game-duration {
+  padding: 8px 12px;
+  border-radius: 5px;
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  color: white;
+  font-size: 1rem;
+  cursor: pointer;
+  outline: none;
+}
+
+#game-duration:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+#game-duration option {
+  background: #333;
+  color: white;
 }

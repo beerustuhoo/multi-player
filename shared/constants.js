@@ -16,6 +16,13 @@ export const CONSTANTS = {
     PLAYER_HP: 100,
     SPAWN_DELAY: 2000,
 
+    // Game Duration (seconds)
+    GAME_DURATIONS: {
+        MIN_3: 180,
+        MIN_5: 300,
+        MIN_10: 600
+    },
+
     // Combat
     PUNCH_DAMAGE: 10,
     PUNCH_COOLDOWN: 250,
