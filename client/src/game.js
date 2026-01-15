@@ -413,7 +413,7 @@ export class Game {
         fpsCounterEl.classList.remove('low-fps', 'critical-fps');
         if (currentRenderFPS < 30) {
             fpsCounterEl.classList.add('critical-fps');
-        } else if (currentRenderFPS < 60) {
+        } else if (currentRenderFPS < 55) {
             fpsCounterEl.classList.add('low-fps');
         }
     }

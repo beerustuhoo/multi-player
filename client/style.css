@@ -438,6 +438,7 @@ input {
   background: #fff;
   transform-origin: top center;
   transition: transform 0.1s;
+  will-change: transform;
 }
 
 .arm-left {
